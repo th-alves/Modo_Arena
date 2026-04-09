@@ -1,5 +1,5 @@
 // =============================================================================
-// app.js — Main application logic for Arena Champion Counter
+// app.js — Arena Champion Counter v3
 // =============================================================================
 
 (function () {
@@ -7,91 +7,92 @@
 
   // ---- Estado ----
   let state = loadState();
-  let activeRole = 'ALL';
+  let activeRole  = 'ALL';
   let searchQuery = '';
-  let currentPage = 1;
-  const PER_PAGE = 24;
+  let activeTag   = null;       // filtro por tag
+  let showUnplayed = false;     // filtro "Não joguei"
+  let currentPage  = 1;
+  const PER_PAGE   = 24;
 
-  // ---- Sistema de Ranque ----
+  // ---- Ranques ----
   const RANKS = [
-    { name: 'Ferro',        min: 0,   max: 0,   color: '#6e6e6e', icon: '🩶' },
-    { name: 'Bronze',       min: 1,   max: 5,   color: '#cd7f32', icon: '🥉' },
-    { name: 'Prata',        min: 6,   max: 15,  color: '#c0c0c0', icon: '🥈' },
-    { name: 'Ouro',         min: 16,  max: 30,  color: '#ffd700', icon: '🥇' },
-    { name: 'Platina',      min: 31,  max: 50,  color: '#00d4aa', icon: '💎' },
-    { name: 'Diamante',     min: 51,  max: 75,  color: '#5b9fff', icon: '🔷' },
-    { name: 'Mestre',       min: 76,  max: 100, color: '#9b59b6', icon: '👑' },
-    { name: 'Grão-Mestre',  min: 101, max: 130, color: '#e84057', icon: '🔥' },
-    { name: 'Desafiante',   min: 131, max: Infinity, color: '#c89b3c', icon: '⚡' },
+    { name: 'Ferro',       min: 0,   max: 0,        color: '#7a7a7a', icon: '🩶' },
+    { name: 'Bronze',      min: 1,   max: 5,        color: '#cd7f32', icon: '🥉' },
+    { name: 'Prata',       min: 6,   max: 15,       color: '#c0c0c0', icon: '🥈' },
+    { name: 'Ouro',        min: 16,  max: 30,       color: '#ffd700', icon: '🥇' },
+    { name: 'Platina',     min: 31,  max: 50,       color: '#00d4aa', icon: '💎' },
+    { name: 'Diamante',    min: 51,  max: 75,       color: '#5b9fff', icon: '🔷' },
+    { name: 'Mestre',      min: 76,  max: 100,      color: '#9b59b6', icon: '👑' },
+    { name: 'Grão-Mestre', min: 101, max: 130,      color: '#e84057', icon: '🔥' },
+    { name: 'Desafiante',  min: 131, max: Infinity, color: '#c89b3c', icon: '⚡' },
   ];
+  function getRank(wins) { return RANKS.find(r => wins >= r.min && wins <= r.max) || RANKS[0]; }
 
-  function getRank(wins) {
-    return RANKS.find(r => wins >= r.min && wins <= r.max) || RANKS[0];
-  }
-
-  // ---- DOM refs ----
-  const grid = document.getElementById('champion-grid');
-  const searchInput = document.getElementById('search-input');
-  const roleFilters = document.getElementById('role-filters');
+  // ---- DOM ----
+  const grid          = document.getElementById('champion-grid');
+  const searchInput   = document.getElementById('search-input');
+  const roleFilters   = document.getElementById('role-filters');
   const detailOverlay = document.getElementById('detail-overlay');
-  const detailPanel = document.getElementById('detail-panel');
-  const toastEl = document.getElementById('toast');
-  const paginationEl = document.getElementById('pagination');
+  const toastEl       = document.getElementById('toast');
+  const paginationEl  = document.getElementById('pagination');
 
-  // Stats
-  const statTotal = document.getElementById('stat-total');
-  const statDefeated = document.getElementById('stat-defeated');
-  const statRemaining = document.getElementById('stat-remaining');
-  const statPercent = document.getElementById('stat-percent');
-  const statRank = document.getElementById('stat-rank');
+  const statTotal    = document.getElementById('stat-total');
+  const statWins     = document.getElementById('stat-wins');
+  const statUnique   = document.getElementById('stat-unique');
+  const statLosses   = document.getElementById('stat-losses');
+  const statWinrate  = document.getElementById('stat-winrate');
+  const statRank     = document.getElementById('stat-rank');
   const progressFill = document.getElementById('progress-fill');
+  const statPercent  = document.getElementById('stat-percent');
 
-  // Current champion
   const currentChampionEl = document.getElementById('current-champion');
+  const tagFilterBar      = document.getElementById('tag-filter-bar');
+  const patchHistoryList  = document.getElementById('patch-history-list');
 
-  // Detail panel refs
-  const detailSplash = document.getElementById('detail-splash');
-  const detailAvatar = document.getElementById('detail-avatar');
-  const detailName = document.getElementById('detail-name');
-  const detailTitle = document.getElementById('detail-title');
-  const detailRole = document.getElementById('detail-role');
+  const detailSplash  = document.getElementById('detail-splash');
+  const detailAvatar  = document.getElementById('detail-avatar');
+  const detailName    = document.getElementById('detail-name');
+  const detailTitle   = document.getElementById('detail-title');
+  const detailRole    = document.getElementById('detail-role');
   const detailActions = document.getElementById('detail-actions');
-  const tagsList = document.getElementById('tags-list');
-  const counterList = document.getElementById('counter-list');
-  const detailClose = document.getElementById('detail-close');
+  const tagsList      = document.getElementById('tags-list');
+  const counterList   = document.getElementById('counter-list');
+  const detailClose   = document.getElementById('detail-close');
 
   // ---- Toast ----
   let toastTimer = null;
-  function showToast(message, type = 'success') {
+  function showToast(msg, type = 'success') {
     clearTimeout(toastTimer);
-    toastEl.textContent = message;
-    toastEl.className = 'toast toast--visible';
+    toastEl.textContent = msg;
+    toastEl.className   = 'toast toast--visible';
     if (type === 'danger') toastEl.classList.add('toast--danger');
-    if (type === 'gold') toastEl.classList.add('toast--gold');
-    toastTimer = setTimeout(() => {
-      toastEl.classList.remove('toast--visible');
-    }, 2200);
+    if (type === 'gold')   toastEl.classList.add('toast--gold');
+    toastTimer = setTimeout(() => toastEl.classList.remove('toast--visible'), 2400);
   }
 
-  // ---- Stats + Ranque ----
+  // ---- Stats ----
   function updateStats() {
-    const total = CHAMPIONS.length;
-    const defeated = getDefeatedCount(state);
-    const remaining = total - defeated;
-    const percent = total > 0 ? Math.round((defeated / total) * 100) : 0;
-    const rank = getRank(defeated);
+    const total       = CHAMPIONS.length;
+    const totalWins   = getTotalWins(state);
+    const totalLosses = getTotalLosses(state);
+    const unique      = getUniqueWins(state);
+    const played      = totalWins + totalLosses;
+    const winrate     = played > 0 ? Math.round((totalWins / played) * 100) : 0;
+    const percent     = total > 0 ? Math.round((unique / total) * 100) : 0;
+    const rank        = getRank(totalWins);
 
-    statTotal.textContent = total;
-    statDefeated.textContent = defeated;
-    statRemaining.textContent = remaining;
-    statPercent.textContent = `${percent}%`;
+    statTotal.textContent   = total;
+    statWins.textContent    = totalWins;
+    statUnique.textContent  = unique;
+    statLosses.textContent  = totalLosses;
+    statWinrate.textContent = `${winrate}%`;
     progressFill.style.width = `${percent}%`;
+    statPercent.textContent  = `${percent}%`;
 
-    // Atualiza badge de ranque
     if (statRank) {
       statRank.innerHTML = `
         <span class="rank-icon">${rank.icon}</span>
-        <span class="rank-name" style="color: ${rank.color}">${rank.name}</span>
+        <span class="rank-name" style="color:${rank.color}">${rank.name}</span>
       `;
     }
   }
@@ -102,43 +103,39 @@
       const champ = getChampionById(state.currentChampion);
       if (champ) {
         currentChampionEl.classList.remove('current-champion--empty');
-        const alreadyWon = isDefeated(state, champ.id);
+        const wins   = getWinCount(state, champ.id);
+        const losses = getLossCount(state, champ.id);
         currentChampionEl.innerHTML = `
           <img class="current-champion__img" src="${CHAMPION_IMG(champ.id)}" alt="${champ.name}">
           <div class="current-champion__info">
             <div class="current-champion__label">Campeão Atual</div>
             <div class="current-champion__name">${champ.name}</div>
+            ${wins > 0 || losses > 0 ? `<div class="current-champion__record"><span class="record-w">${wins}V</span> <span class="record-l">${losses}D</span></div>` : ''}
           </div>
           <div class="current-champion__btns">
-            <button class="current-champion__clear" id="clear-current">✕ Limpar</button>
-            ${!alreadyWon ? '<button class="current-champion__won" id="btn-won">🏆 Ganhei</button>' : ''}
-            <button class="current-champion__lost" id="btn-lost">💀 Perdi</button>
+            <button class="current-champion__clear" id="clear-current">✕</button>
+            <button class="current-champion__won"   id="btn-won">🏆 Ganhei</button>
+            <button class="current-champion__lost"  id="btn-lost">💀 Perdi</button>
           </div>
         `;
-        document.getElementById('clear-current').addEventListener('click', (e) => {
+        document.getElementById('clear-current').addEventListener('click', e => {
           e.stopPropagation();
           state = clearCurrentChampion(state);
-          updateCurrentChampion();
-          renderGrid();
+          updateCurrentChampion(); renderGrid();
           showToast('Campeão atual removido', 'danger');
         });
-        const btnWon = document.getElementById('btn-won');
-        if (btnWon) {
-          btnWon.addEventListener('click', (e) => {
-            e.stopPropagation();
-            state = toggleDefeated(state, champ.id);
-            state = clearCurrentChampion(state);
-            updateStats();
-            updateCurrentChampion();
-            renderGrid();
-            showToast(`🏆 Venci com ${champ.name}!`, 'success');
-          });
-        }
-        document.getElementById('btn-lost').addEventListener('click', (e) => {
+        document.getElementById('btn-won').addEventListener('click', e => {
           e.stopPropagation();
+          state = addWin(state, champ.id);
           state = clearCurrentChampion(state);
-          updateCurrentChampion();
-          renderGrid();
+          updateStats(); updateCurrentChampion(); renderGrid();
+          showToast(`🏆 Venci com ${champ.name}! (${getWinCount(state, champ.id)}ª vitória)`, 'success');
+        });
+        document.getElementById('btn-lost').addEventListener('click', e => {
+          e.stopPropagation();
+          state = addLoss(state, champ.id);
+          state = clearCurrentChampion(state);
+          updateStats(); updateCurrentChampion(); renderGrid();
           showToast(`Perdi com ${champ.name}… próxima!`, 'danger');
         });
         return;
@@ -155,217 +152,279 @@
 
   // ---- Card ----
   function createChampionCard(champ) {
-    const defeated = isDefeated(state, champ.id);
+    const wins      = getWinCount(state, champ.id);
+    const losses    = getLossCount(state, champ.id);
+    const hasWins   = wins > 0;
+    const hasLosses = losses > 0;
+    const untried   = wins === 0 && losses === 0;
     const isCurrent = state.currentChampion === champ.id;
+    const compact   = state.compactMode;
 
     const card = document.createElement('article');
     card.className = 'champion-card';
-    if (defeated) card.classList.add('champion-card--defeated');
+    if (hasWins)   card.classList.add('champion-card--defeated');
     if (isCurrent) card.classList.add('champion-card--current');
+    if (untried)   card.classList.add('champion-card--untried');
+    if (compact)   card.classList.add('champion-card--compact');
 
-    card.innerHTML = `
-      <div class="champion-card__img-wrapper">
-        <img class="champion-card__img" src="${CHAMPION_IMG(champ.id)}" alt="${champ.name}" loading="lazy">
-        <div class="champion-card__overlay"></div>
-        <span class="champion-card__role-badge">${ROLES[champ.role] || champ.role}</span>
-      </div>
-      <div class="champion-card__info">
-        <div class="champion-card__name">${champ.name}</div>
-        <div class="champion-card__title">${champ.title}</div>
-      </div>
-      <div class="champion-card__actions">
-        <button class="card-action-btn ${defeated ? 'card-action-btn--undefeat' : 'card-action-btn--defeat'}" data-action="toggle-defeat" data-id="${champ.id}">
-          ${defeated ? 'Desfazer' : '✓ Venci'}
-        </button>
-        <button class="card-action-btn" data-action="view-detail" data-id="${champ.id}">
-          Detalhes
-        </button>
-      </div>
-    `;
+    if (compact) {
+      card.innerHTML = `
+        <div class="champion-card__img-wrapper">
+          <img class="champion-card__img" src="${CHAMPION_IMG(champ.id)}" alt="${champ.name}" loading="lazy">
+          <div class="champion-card__overlay"></div>
+          ${wins > 0 ? `<span class="win-badge">${wins}</span>` : ''}
+          ${losses > 0 ? `<span class="loss-badge">${losses}</span>` : ''}
+        </div>
+        <div class="champion-card__compact-name">${champ.name}</div>
+      `;
+      card.addEventListener('click', () => openDetail(champ.id));
+      card.querySelector('.champion-card__img-wrapper').addEventListener('click', e => {
+        e.stopPropagation(); openDetail(champ.id);
+      });
+    } else {
+      card.innerHTML = `
+        <div class="champion-card__img-wrapper">
+          <img class="champion-card__img" src="${CHAMPION_IMG(champ.id)}" alt="${champ.name}" loading="lazy">
+          <div class="champion-card__overlay"></div>
+          <span class="champion-card__role-badge">${ROLES[champ.role] || champ.role}</span>
+          ${wins > 0 ? `<span class="win-badge">${wins}V</span>` : ''}
+          ${losses > 0 ? `<span class="loss-badge">${losses}D</span>` : ''}
+          ${untried ? '<span class="untried-badge">Novo</span>' : ''}
+        </div>
+        <div class="champion-card__info">
+          <div class="champion-card__name">${champ.name}</div>
+          <div class="champion-card__title">${champ.title}</div>
+          ${hasWins || hasLosses ? `<div class="card-record"><span class="record-w">${wins}V</span><span class="record-sep">/</span><span class="record-l">${losses}D</span></div>` : ''}
+        </div>
+        <div class="champion-card__actions">
+          <button class="card-action-btn card-action-btn--win" data-action="add-win" data-id="${champ.id}">✓ Venci</button>
+          <button class="card-action-btn card-action-btn--undo" data-action="undo-win" data-id="${champ.id}" style="${wins > 0 ? '' : 'visibility:hidden;pointer-events:none'}">↩</button>
+          <button class="card-action-btn" data-action="view-detail" data-id="${champ.id}">Info</button>
+        </div>
+      `;
 
-    card.querySelector('[data-action="view-detail"]').addEventListener('click', (e) => {
-      e.stopPropagation();
-      openDetail(champ.id);
-    });
-
-    card.querySelector('[data-action="toggle-defeat"]').addEventListener('click', (e) => {
-      e.stopPropagation();
-      state = toggleDefeated(state, champ.id);
-      updateStats();
-      renderGrid();
-      showToast(
-        isDefeated(state, champ.id) ? `🏆 Venci com ${champ.name}!` : `${champ.name} desmarcado`,
-        isDefeated(state, champ.id) ? 'success' : 'danger'
-      );
-    });
-
-    card.querySelector('.champion-card__img-wrapper').addEventListener('click', () => openDetail(champ.id));
+      card.querySelector('[data-action="view-detail"]').addEventListener('click', e => {
+        e.stopPropagation(); openDetail(champ.id);
+      });
+      card.querySelector('[data-action="add-win"]').addEventListener('click', e => {
+        e.stopPropagation();
+        state = addWin(state, champ.id);
+        updateStats(); renderGrid();
+        showToast(`🏆 Venci com ${champ.name}! (${getWinCount(state, champ.id)}ª vez)`, 'success');
+      });
+      const undoBtn = card.querySelector('[data-action="undo-win"]');
+      if (undoBtn && wins > 0) {
+        undoBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          state = removeWin(state, champ.id);
+          updateStats(); renderGrid();
+          showToast(`${champ.name} — vitória removida`, 'danger');
+        });
+      }
+      card.querySelector('.champion-card__img-wrapper').addEventListener('click', () => openDetail(champ.id));
+    }
 
     return card;
   }
 
-  // ---- Grid + Paginação ----
+  // ---- Tag Filter Bar ----
+  function updateTagFilterBar() {
+    if (!tagFilterBar) return;
+    if (!activeTag) {
+      tagFilterBar.classList.add('tag-filter-bar--hidden');
+      tagFilterBar.innerHTML = '';
+      return;
+    }
+    tagFilterBar.classList.remove('tag-filter-bar--hidden');
+    tagFilterBar.innerHTML = `
+      <span class="tag-filter-label">Tag ativa:</span>
+      <span class="tag-filter-chip">
+        ${activeTag.replace(/_/g, ' ')}
+        <button class="tag-filter-clear" id="clear-tag">✕</button>
+      </span>
+    `;
+    document.getElementById('clear-tag').addEventListener('click', () => {
+      activeTag = null;
+      currentPage = 1;
+      updateTagFilterBar();
+      renderGrid();
+    });
+  }
+
+  // ---- Filtro ----
   function getFilteredChampions() {
-    let champions = getChampionsByRole(activeRole);
+    let champs = getChampionsByRole(activeRole);
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      champions = champions.filter(c =>
+      champs = champs.filter(c =>
         c.name.toLowerCase().includes(q) ||
         c.title.toLowerCase().includes(q) ||
         (ROLES[c.role] || '').toLowerCase().includes(q)
       );
     }
-    return champions;
+    if (activeTag) {
+      champs = champs.filter(c => c.tags.includes(activeTag));
+    }
+    if (showUnplayed) {
+      champs = champs.filter(c => getWinCount(state, c.id) === 0 && getLossCount(state, c.id) === 0);
+    }
+    return champs;
   }
 
+  // ---- Grid ----
   function renderGrid() {
-    const champions = getFilteredChampions();
-    const totalPages = Math.max(1, Math.ceil(champions.length / PER_PAGE));
+    const champs = getFilteredChampions();
+    const totalPages = Math.max(1, Math.ceil(champs.length / PER_PAGE));
 
-    // Garante que a página atual é válida
     if (currentPage > totalPages) currentPage = totalPages;
     if (currentPage < 1) currentPage = 1;
 
-    const start = (currentPage - 1) * PER_PAGE;
-    const pageChamps = champions.slice(start, start + PER_PAGE);
+    const page = champs.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+
+    // compact class on grid
+    grid.classList.toggle('champion-grid--compact', !!state.compactMode);
 
     grid.innerHTML = '';
-
-    if (champions.length === 0) {
+    if (champs.length === 0) {
       grid.innerHTML = `
-        <div class="empty-state" style="grid-column: 1 / -1;">
-          <div class="empty-state__icon">🔍</div>
-          <div class="empty-state__text">Nenhum campeão encontrado</div>
-        </div>
-      `;
-      renderPagination(0, 1);
-      return;
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="empty-state__icon">${showUnplayed ? '🎉' : '🔍'}</div>
+          <div class="empty-state__text">${showUnplayed ? 'Você jogou com todos!' : 'Nenhum campeão encontrado'}</div>
+        </div>`;
+      renderPagination(0, 1); return;
     }
 
-    const fragment = document.createDocumentFragment();
-    pageChamps.forEach(champ => fragment.appendChild(createChampionCard(champ)));
-    grid.appendChild(fragment);
-
-    renderPagination(champions.length, totalPages);
+    const frag = document.createDocumentFragment();
+    page.forEach(c => frag.appendChild(createChampionCard(c)));
+    grid.appendChild(frag);
+    renderPagination(champs.length, totalPages);
   }
 
+  // ---- Paginação ----
   function renderPagination(total, totalPages) {
     if (!paginationEl) return;
-
-    if (totalPages <= 1) {
-      paginationEl.innerHTML = '';
-      return;
-    }
+    if (totalPages <= 1) { paginationEl.innerHTML = ''; return; }
 
     const start = (currentPage - 1) * PER_PAGE + 1;
-    const end = Math.min(currentPage * PER_PAGE, total);
-
-    // Constrói botões de página (mostra até 5 ao redor da atual)
-    let pageButtons = '';
+    const end   = Math.min(currentPage * PER_PAGE, total);
     const delta = 2;
-    const left = Math.max(1, currentPage - delta);
+    const left  = Math.max(1, currentPage - delta);
     const right = Math.min(totalPages, currentPage + delta);
 
-    if (left > 1) {
-      pageButtons += `<button class="page-btn" data-page="1">1</button>`;
-      if (left > 2) pageButtons += `<span class="page-ellipsis">…</span>`;
-    }
-    for (let i = left; i <= right; i++) {
-      pageButtons += `<button class="page-btn ${i === currentPage ? 'page-btn--active' : ''}" data-page="${i}">${i}</button>`;
-    }
-    if (right < totalPages) {
-      if (right < totalPages - 1) pageButtons += `<span class="page-ellipsis">…</span>`;
-      pageButtons += `<button class="page-btn" data-page="${totalPages}">${totalPages}</button>`;
-    }
+    let btns = '';
+    if (left > 1) { btns += `<button class="page-btn" data-page="1">1</button>`; if (left > 2) btns += `<span class="page-ellipsis">…</span>`; }
+    for (let i = left; i <= right; i++) btns += `<button class="page-btn ${i===currentPage?'page-btn--active':''}" data-page="${i}">${i}</button>`;
+    if (right < totalPages) { if (right < totalPages - 1) btns += `<span class="page-ellipsis">…</span>`; btns += `<button class="page-btn" data-page="${totalPages}">${totalPages}</button>`; }
 
     paginationEl.innerHTML = `
       <div class="pagination-info">${start}–${end} de ${total} campeões</div>
       <div class="pagination-controls">
-        <button class="page-btn page-btn--nav" id="page-prev" ${currentPage === 1 ? 'disabled' : ''}>‹ Anterior</button>
-        ${pageButtons}
-        <button class="page-btn page-btn--nav" id="page-next" ${currentPage === totalPages ? 'disabled' : ''}>Próxima ›</button>
+        <button class="page-btn page-btn--nav" id="page-prev" ${currentPage===1?'disabled':''}>‹ Anterior</button>
+        ${btns}
+        <button class="page-btn page-btn--nav" id="page-next" ${currentPage===totalPages?'disabled':''}>Próxima ›</button>
       </div>
     `;
-
-    paginationEl.querySelector('#page-prev')?.addEventListener('click', () => {
-      if (currentPage > 1) { currentPage--; renderGrid(); scrollToGrid(); }
-    });
-    paginationEl.querySelector('#page-next')?.addEventListener('click', () => {
-      if (currentPage < totalPages) { currentPage++; renderGrid(); scrollToGrid(); }
-    });
-    paginationEl.querySelectorAll('.page-btn[data-page]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        currentPage = parseInt(btn.dataset.page, 10);
-        renderGrid();
-        scrollToGrid();
-      });
+    paginationEl.querySelector('#page-prev')?.addEventListener('click', () => { if(currentPage>1){currentPage--;renderGrid();scrollToGrid();} });
+    paginationEl.querySelector('#page-next')?.addEventListener('click', () => { if(currentPage<totalPages){currentPage++;renderGrid();scrollToGrid();} });
+    paginationEl.querySelectorAll('.page-btn[data-page]').forEach(b => {
+      b.addEventListener('click', () => { currentPage=parseInt(b.dataset.page,10); renderGrid(); scrollToGrid(); });
     });
   }
 
-  function scrollToGrid() {
-    grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+  function scrollToGrid() { grid.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
-  // ---- Modal ----
+  // ---- Modal de Detalhes ----
   function openDetail(championId) {
     const champ = getChampionById(championId);
     if (!champ) return;
 
-    const defeated = isDefeated(state, champ.id);
+    const wins   = getWinCount(state, champ.id);
+    const losses = getLossCount(state, champ.id);
 
-    detailSplash.src = CHAMPION_SPLASH(champ.id);
-    detailSplash.alt = champ.name;
-    detailAvatar.src = CHAMPION_IMG(champ.id);
-    detailAvatar.alt = champ.name;
-    detailName.textContent = champ.name;
+    detailSplash.src  = CHAMPION_SPLASH(champ.id);
+    detailSplash.alt  = champ.name;
+    detailAvatar.src  = CHAMPION_IMG(champ.id);
+    detailAvatar.alt  = champ.name;
+    detailName.textContent  = champ.name;
     detailTitle.textContent = champ.title;
-    detailRole.textContent = ROLES[champ.role] || champ.role;
+    detailRole.textContent  = ROLES[champ.role] || champ.role;
 
     const isCurrent = state.currentChampion === champ.id;
+    const played    = wins + losses;
+    const wr        = played > 0 ? Math.round((wins / played) * 100) : 0;
+
     detailActions.innerHTML = `
       <button class="detail-action-btn detail-action-btn--select" data-action="select">
         ${isCurrent ? '★ Selecionado' : '⚔ Selecionar'}
       </button>
-      <button class="detail-action-btn ${defeated ? 'detail-action-btn--undefeat' : 'detail-action-btn--defeat'}" data-action="toggle">
-        ${defeated ? '↩ Desmarcar' : '✓ Venci'}
-      </button>
+      <button class="detail-action-btn detail-action-btn--defeat" data-action="add-win">✓ Venci</button>
+      <button class="detail-action-btn detail-action-btn--loss" data-action="add-loss">💀 Perdi</button>
+      ${wins > 0 ? `<button class="detail-action-btn detail-action-btn--undo" data-action="undo-win">↩ -1V</button>` : ''}
+      ${losses > 0 ? `<button class="detail-action-btn detail-action-btn--undo" data-action="undo-loss">↩ -1D</button>` : ''}
     `;
+
+    if (played > 0) {
+      const recordDiv = document.createElement('div');
+      recordDiv.className = 'detail-record';
+      recordDiv.innerHTML = `
+        <span class="record-w">${wins} Vitórias</span>
+        <span class="record-sep">·</span>
+        <span class="record-l">${losses} Derrotas</span>
+        <span class="record-sep">·</span>
+        <span class="record-wr">${wr}% WR</span>
+      `;
+      detailActions.insertAdjacentElement('afterend', recordDiv);
+    } else {
+      document.querySelector('.detail-record')?.remove();
+    }
 
     detailActions.querySelector('[data-action="select"]').addEventListener('click', () => {
       state = setCurrentChampion(state, champ.id);
-      updateCurrentChampion();
-      renderGrid();
-      openDetail(champ.id);
-      showToast(`${champ.name} selecionado como atual!`, 'gold');
+      updateCurrentChampion(); renderGrid(); openDetail(champ.id);
+      showToast(`${champ.name} selecionado!`, 'gold');
+    });
+    detailActions.querySelector('[data-action="add-win"]').addEventListener('click', () => {
+      state = addWin(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
+      showToast(`🏆 Venci com ${champ.name}! (${getWinCount(state,champ.id)}ª vez)`, 'success');
+    });
+    detailActions.querySelector('[data-action="add-loss"]').addEventListener('click', () => {
+      state = addLoss(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
+      showToast(`Perdi com ${champ.name}…`, 'danger');
+    });
+    detailActions.querySelector('[data-action="undo-win"]')?.addEventListener('click', () => {
+      state = removeWin(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
+      showToast(`${champ.name} — vitória removida`, 'danger');
+    });
+    detailActions.querySelector('[data-action="undo-loss"]')?.addEventListener('click', () => {
+      state = removeLoss(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
+      showToast(`${champ.name} — derrota removida`, 'gold');
     });
 
-    detailActions.querySelector('[data-action="toggle"]').addEventListener('click', () => {
-      state = toggleDefeated(state, champ.id);
-      updateStats();
-      renderGrid();
-      openDetail(champ.id);
-      showToast(
-        isDefeated(state, champ.id) ? `🏆 Venci com ${champ.name}!` : `${champ.name} desmarcado`,
-        isDefeated(state, champ.id) ? 'success' : 'danger'
-      );
-    });
-
+    // Tags clicáveis
     tagsList.innerHTML = champ.tags.length
-      ? champ.tags.map(t => `<span class="tag-chip">${t.replace(/_/g, ' ')}</span>`).join('')
-      : '<span style="color: var(--text-muted); font-size: 0.85rem;">—</span>';
+      ? champ.tags.map(t => `<span class="tag-chip tag-chip--clickable" data-tag="${t}">${t.replace(/_/g,' ')}</span>`).join('')
+      : '<span style="color:var(--text-muted);font-size:0.85rem">—</span>';
+
+    tagsList.querySelectorAll('.tag-chip--clickable').forEach(chip => {
+      chip.addEventListener('click', () => {
+        activeTag = chip.dataset.tag;
+        currentPage = 1;
+        updateTagFilterBar();
+        renderGrid();
+        closeDetail();
+        showToast(`Filtrando por tag: ${activeTag.replace(/_/g,' ')}`, 'gold');
+      });
+    });
 
     const counters = getCountersFor(champ.id);
     counterList.innerHTML = counters.length
       ? counters.map(c => `
           <div class="counter-card" data-counter-id="${c.id}">
             <img class="counter-card__img" src="${CHAMPION_IMG(c.id)}" alt="${c.name}" loading="lazy">
-            <div>
-              <div class="counter-card__name">${c.name}</div>
-              <div class="counter-card__role">${ROLES[c.role] || c.role}</div>
-            </div>
-          </div>
-        `).join('')
-      : '<div style="color: var(--text-muted); font-size: 0.85rem;">Sem counters registrados</div>';
+            <div><div class="counter-card__name">${c.name}</div><div class="counter-card__role">${ROLES[c.role]||c.role}</div></div>
+          </div>`).join('')
+      : '<div style="color:var(--text-muted);font-size:0.85rem">Sem counters registrados</div>';
 
     counterList.querySelectorAll('.counter-card').forEach(card => {
       card.addEventListener('click', () => openDetail(card.dataset.counterId));
@@ -376,18 +435,115 @@
   }
 
   function closeDetail() {
+    document.querySelector('.detail-record')?.remove();
     detailOverlay.classList.add('detail-overlay--hidden');
     document.body.style.overflow = '';
   }
 
-  // ---- Event Listeners ----
-  searchInput.addEventListener('input', (e) => {
-    searchQuery = e.target.value;
+  // ---- Histórico de Patches ----
+  function renderPatchHistory() {
+    if (!patchHistoryList) return;
+    if (state.patches.length === 0) {
+      patchHistoryList.innerHTML = '<div class="patch-empty">Nenhum patch salvo ainda. Ao resetar, o histórico aparece aqui.</div>';
+      return;
+    }
+    patchHistoryList.innerHTML = state.patches.map((p, i) => `
+      <div class="patch-item" ${i === 0 ? 'data-latest' : ''}>
+        <div class="patch-item__header">
+          <span class="patch-item__label">${p.label}</span>
+          <span class="patch-item__date">${p.date}</span>
+        </div>
+        <div class="patch-item__stats">
+          <span class="patch-stat patch-stat--win">🏆 ${p.totalWins} vitórias</span>
+          <span class="patch-stat patch-stat--unique">🎯 ${p.uniqueWins} campeões</span>
+          <span class="patch-stat patch-stat--loss">💀 ${p.totalLosses} derrotas</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ---- Reset Modal ----
+  const resetOverlay = document.getElementById('reset-overlay');
+  const resetBtn     = document.getElementById('reset-wins-btn');
+  const resetCancel  = document.getElementById('reset-cancel');
+  const resetConfirm = document.getElementById('reset-confirm');
+  const patchLabelInput = document.getElementById('patch-label-input');
+
+  function openReset()  { resetOverlay.classList.remove('reset-overlay--hidden'); document.body.style.overflow = 'hidden'; patchLabelInput?.focus(); }
+  function closeReset() { resetOverlay.classList.add('reset-overlay--hidden'); document.body.style.overflow = ''; }
+
+  resetBtn.addEventListener('click', openReset);
+  resetCancel.addEventListener('click', closeReset);
+  resetOverlay.addEventListener('click', e => { if (e.target === resetOverlay) closeReset(); });
+  resetConfirm.addEventListener('click', () => {
+    const label = patchLabelInput?.value.trim() || `Patch ${new Date().toLocaleDateString('pt-BR')}`;
+    state = savePatchSnapshot(state, label);
+    state = resetWinsAndLosses(state);
+    if (patchLabelInput) patchLabelInput.value = '';
+    closeReset();
+    updateStats(); updateCurrentChampion(); renderGrid(); renderPatchHistory();
+    showToast('🔄 Resetado! Bora pro novo patch!', 'gold');
+  });
+
+  // ---- Patch History Toggle ----
+  const patchToggle = document.getElementById('patch-history-toggle');
+  const patchBody   = document.getElementById('patch-history-body');
+  patchToggle?.addEventListener('click', () => {
+    const open = patchBody.classList.toggle('patch-history__body--open');
+    patchToggle.querySelector('.patch-toggle-arrow').textContent = open ? '▲' : '▼';
+  });
+
+  // ---- Compact Mode ----
+  const compactBtn = document.getElementById('compact-toggle');
+  compactBtn?.addEventListener('click', () => {
+    state.compactMode = !state.compactMode;
+    saveState(state);
+    compactBtn.classList.toggle('control-btn--active', state.compactMode);
+    compactBtn.title = state.compactMode ? 'Modo normal' : 'Modo compacto';
+    renderGrid();
+  });
+
+  // ---- "Não joguei" filter ----
+  const unplayedBtn = document.getElementById('unplayed-toggle');
+  unplayedBtn?.addEventListener('click', () => {
+    showUnplayed = !showUnplayed;
+    unplayedBtn.classList.toggle('control-btn--active', showUnplayed);
     currentPage = 1;
     renderGrid();
   });
 
-  roleFilters.addEventListener('click', (e) => {
+  // ---- Export / Import ----
+  document.getElementById('export-btn')?.addEventListener('click', () => {
+    exportData(state);
+    showToast('📦 Backup exportado!', 'gold');
+  });
+
+  document.getElementById('import-btn')?.addEventListener('click', () => {
+    document.getElementById('import-file')?.click();
+  });
+
+  document.getElementById('import-file')?.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const imported = importData(ev.target.result);
+      if (imported) {
+        state = imported;
+        updateStats(); updateCurrentChampion(); renderGrid(); renderPatchHistory();
+        showToast('✅ Dados importados com sucesso!', 'success');
+      } else {
+        showToast('❌ Arquivo inválido', 'danger');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // ---- Event Listeners ----
+  searchInput.addEventListener('input', e => { searchQuery = e.target.value; currentPage = 1; renderGrid(); });
+
+  roleFilters.addEventListener('click', e => {
     const btn = e.target.closest('.role-btn');
     if (!btn) return;
     roleFilters.querySelectorAll('.role-btn').forEach(b => b.classList.remove('role-btn--active'));
@@ -398,25 +554,33 @@
   });
 
   detailClose.addEventListener('click', closeDetail);
-  detailOverlay.addEventListener('click', (e) => { if (e.target === detailOverlay) closeDetail(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
+  detailOverlay.addEventListener('click', e => { if (e.target === detailOverlay) closeDetail(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeDetail(); closeReset(); }
+  });
 
-  // ---- Loading overlay ----
+  // ---- Loading ----
   function showLoading() {
     grid.innerHTML = `
-      <div class="loading-state" style="grid-column: 1 / -1;">
+      <div class="loading-state" style="grid-column:1/-1">
         <div class="loading-spinner"></div>
         <div class="loading-text">Carregando campeões…</div>
       </div>
     `;
   }
 
-  // ---- Init (assíncrono) ----
+  // ---- Init ----
   async function init() {
     showLoading();
     await loadAllChampions();
+
+    // Sync compact button state
+    if (state.compactMode) compactBtn?.classList.add('control-btn--active');
+
     updateStats();
     updateCurrentChampion();
+    updateTagFilterBar();
+    renderPatchHistory();
     renderGrid();
   }
 
