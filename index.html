@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Arena Champion Counter — Rastreie seus confrontos no Arena do LoL, marque campeões derrotados e descubra counters eficazes.">
+  <title>Contador de Apavoro</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- HEADER -->
+    <header class="header">
+      <h1 class="header__title">Contador de Apavoro</h1>
+      <p class="header__subtitle">Rastreie confrontos · Marque vitórias · Descubra counters</p>
+    </header>
+
+    <!-- STATS BAR -->
+    <section class="stats-bar" id="stats-bar">
+      <div class="stat-item">
+        <div class="stat-item__value" id="stat-total">0</div>
+        <div class="stat-item__label">Total</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__value stat-item__value--green" id="stat-defeated">0</div>
+        <div class="stat-item__label">Ganhei com</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__value stat-item__value--teal" id="stat-remaining">0</div>
+        <div class="stat-item__label">Restantes</div>
+      </div>
+      <div class="stat-item stat-item--rank">
+        <div class="stat-rank" id="stat-rank">
+          <span class="rank-icon">🩶</span>
+          <span class="rank-name" style="color: #6e6e6e">Ferro</span>
+        </div>
+        <div class="stat-item__label">Seu Ranque</div>
+      </div>
+      <div class="stat-item" style="width: 140px;">
+        <div class="progress-bar">
+          <div class="progress-bar__fill" id="progress-fill" style="width: 0%;"></div>
+        </div>
+        <div class="stat-item__label" style="margin-top: 6px;" id="stat-percent">0%</div>
+      </div>
+    </section>
+
+    <!-- CURRENT CHAMPION -->
+    <section class="current-champion current-champion--empty" id="current-champion">
+      <div class="current-champion__info">
+        <div class="current-champion__label">Campeão Atual</div>
+        <div class="current-champion__name" id="current-champion-name">Selecione um campeão</div>
+      </div>
+    </section>
+
+    <!-- CONTROLS -->
+    <section class="controls">
+      <div class="search-wrapper">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar campeão..." autocomplete="off">
+      </div>
+      <div class="role-filters" id="role-filters">
+        <button class="role-btn role-btn--active" data-role="ALL">Todos</button>
+        <button class="role-btn" data-role="FIGHTER">Lutador</button>
+        <button class="role-btn" data-role="MAGE">Mago</button>
+        <button class="role-btn" data-role="ASSASSIN">Assassino</button>
+        <button class="role-btn" data-role="TANK">Tanque</button>
+        <button class="role-btn" data-role="MARKSMAN">Atirador</button>
+        <button class="role-btn" data-role="SUPPORT">Suporte</button>
+      </div>
+    </section>
+
+    <!-- CHAMPION GRID -->
+    <main class="champion-grid" id="champion-grid"></main>
+
+    <!-- PAGINAÇÃO -->
+    <nav class="pagination" id="pagination"></nav>
+
+  </div>
+
+  <!-- DETAIL OVERLAY (Modal) -->
+  <div class="detail-overlay detail-overlay--hidden" id="detail-overlay">
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-panel__header">
+        <img class="detail-panel__splash" id="detail-splash" src="" alt="">
+        <div class="detail-panel__header-overlay"></div>
+        <button class="detail-panel__close" id="detail-close" aria-label="Fechar">✕</button>
+      </div>
+      <div class="detail-panel__body">
+        <div class="detail-panel__champion-header">
+          <img class="detail-panel__avatar" id="detail-avatar" src="" alt="">
+          <div>
+            <div class="detail-panel__champion-name" id="detail-name"></div>
+            <div class="detail-panel__champion-title" id="detail-title"></div>
+            <div class="detail-panel__champion-role" id="detail-role"></div>
+          </div>
+        </div>
+        <div class="detail-panel__actions" id="detail-actions"></div>
+
+        <!-- Tags -->
+        <div class="tags-section" id="tags-section">
+          <div class="tags-section__title">Características</div>
+          <div class="tags-list" id="tags-list"></div>
+        </div>
+
+        <!-- Counters -->
+        <div class="counters-section" id="counters-section">
+          <div class="counters-section__title">Counters Recomendados</div>
+          <div class="counter-list" id="counter-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Scripts -->
+  <script src="js/champions.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
