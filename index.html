@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TDAH.gg</title>
+  <title>Contador de Apavoro</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
 </head>
@@ -12,7 +12,7 @@
 
     <!-- HEADER -->
     <header class="header">
-      <h1 class="header__title">TDAH.gg</h1>
+      <h1 class="header__title">Contador de Apavoro</h1>
       <p class="header__subtitle">Seu histórico de crimes no Arena.</p>
     </header>
 
@@ -82,6 +82,8 @@
 
         <!-- Botões de controle -->
         <div class="control-btns">
+          <button class="control-btn" id="won-modal-btn" title="Ver campeões que já venci">🏆 Já Venci</button>
+          <button class="control-btn" id="won-toggle" title="Filtrar campeões que já venci">🔍 Filtrar Vitórias</button>
           <button class="control-btn" id="unplayed-toggle" title="Mostrar apenas campeões não jogados">🎯 Não joguei</button>
           <button class="control-btn" id="compact-toggle" title="Modo compacto">▦ Compacto</button>
           <button class="control-btn" id="export-btn" title="Exportar backup JSON">📦 Export</button>
@@ -158,6 +160,22 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL: JÁ VENCI -->
+  <div class="won-overlay won-overlay--hidden" id="won-overlay">
+    <div class="won-modal">
+      <div class="won-modal__header">
+        <span class="won-modal__icon">🏆</span>
+        <span class="won-modal__title">Campeões que você já venceu</span>
+        <button class="won-modal__close" id="won-modal-close">✕</button>
+      </div>
+      <div class="won-modal__stats" id="won-modal-stats"></div>
+      <div class="won-modal__grid" id="won-modal-grid"></div>
+    </div>
+  </div>
+
+  <!-- CANVAS: CONFETTI / SKULLS -->
+  <canvas id="fx-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
 
   <!-- TOAST -->
   <div class="toast" id="toast"></div>

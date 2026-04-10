@@ -11,6 +11,7 @@
   let searchQuery = '';
   let activeTag   = null;       // filtro por tag
   let showUnplayed = false;     // filtro "Não joguei"
+  let showWon      = false;     // filtro "Já Venci"
   let currentPage  = 1;
   const PER_PAGE   = 24;
 
@@ -130,6 +131,7 @@
           state = clearCurrentChampion(state);
           updateStats(); updateCurrentChampion(); renderGrid();
           showToast(`🏆 Venci com ${champ.name}! (${getWinCount(state, champ.id)}ª vitória)`, 'success');
+          window._fxLaunch('confetti');
         });
         document.getElementById('btn-lost').addEventListener('click', e => {
           e.stopPropagation();
@@ -137,6 +139,7 @@
           state = clearCurrentChampion(state);
           updateStats(); updateCurrentChampion(); renderGrid();
           showToast(`Perdi com ${champ.name}… próxima!`, 'danger');
+          window._fxLaunch('skull');
         });
         return;
       }
@@ -211,6 +214,7 @@
         state = addWin(state, champ.id);
         updateStats(); renderGrid();
         showToast(`🏆 Venci com ${champ.name}! (${getWinCount(state, champ.id)}ª vez)`, 'success');
+        window._fxLaunch('confetti');
       });
       const undoBtn = card.querySelector('[data-action="undo-win"]');
       if (undoBtn && wins > 0) {
@@ -267,6 +271,9 @@
     }
     if (showUnplayed) {
       champs = champs.filter(c => getWinCount(state, c.id) === 0 && getLossCount(state, c.id) === 0);
+    }
+    if (showWon) {
+      champs = champs.filter(c => getWinCount(state, c.id) > 0);
     }
     return champs;
   }
@@ -386,10 +393,12 @@
     detailActions.querySelector('[data-action="add-win"]').addEventListener('click', () => {
       state = addWin(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
       showToast(`🏆 Venci com ${champ.name}! (${getWinCount(state,champ.id)}ª vez)`, 'success');
+      window._fxLaunch('confetti');
     });
     detailActions.querySelector('[data-action="add-loss"]').addEventListener('click', () => {
       state = addLoss(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
       showToast(`Perdi com ${champ.name}…`, 'danger');
+      window._fxLaunch('skull');
     });
     detailActions.querySelector('[data-action="undo-win"]')?.addEventListener('click', () => {
       state = removeWin(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
@@ -502,10 +511,21 @@
     renderGrid();
   });
 
+  // ---- "Já Venci" filter ----
+  const wonBtn = document.getElementById('won-toggle');
+  wonBtn?.addEventListener('click', () => {
+    showWon = !showWon;
+    if (showWon) { showUnplayed = false; unplayedBtn?.classList.remove('control-btn--active'); }
+    wonBtn.classList.toggle('control-btn--active', showWon);
+    currentPage = 1;
+    renderGrid();
+  });
+
   // ---- "Não joguei" filter ----
   const unplayedBtn = document.getElementById('unplayed-toggle');
   unplayedBtn?.addEventListener('click', () => {
     showUnplayed = !showUnplayed;
+    if (showUnplayed) { showWon = false; wonBtn?.classList.remove('control-btn--active'); }
     unplayedBtn.classList.toggle('control-btn--active', showUnplayed);
     currentPage = 1;
     renderGrid();
@@ -567,6 +587,150 @@
       </div>
     `;
   }
+
+  // ---- Modal "Já Venci" ----
+  const wonOverlay   = document.getElementById('won-overlay');
+  const wonModalGrid = document.getElementById('won-modal-grid');
+  const wonModalStats = document.getElementById('won-modal-stats');
+  const wonModalClose = document.getElementById('won-modal-close');
+
+  function openWonModal() {
+    const winners = CHAMPIONS.filter(c => getWinCount(state, c.id) > 0)
+      .sort((a, b) => getWinCount(state, b.id) - getWinCount(state, a.id));
+
+    const totalWinsSum = winners.reduce((acc, c) => acc + getWinCount(state, c.id), 0);
+
+    wonModalStats.innerHTML = `
+      <div class="won-modal__stat"><div class="won-modal__stat-value">${winners.length}</div><div class="won-modal__stat-label">Campeões</div></div>
+      <div class="won-modal__stat"><div class="won-modal__stat-value">${totalWinsSum}</div><div class="won-modal__stat-label">Vitórias</div></div>
+      <div class="won-modal__stat"><div class="won-modal__stat-value">${CHAMPIONS.length - winners.length}</div><div class="won-modal__stat-label">Faltam</div></div>
+      <div class="won-modal__stat"><div class="won-modal__stat-value">${Math.round((winners.length/CHAMPIONS.length)*100)}%</div><div class="won-modal__stat-label">Completado</div></div>
+    `;
+
+    if (winners.length === 0) {
+      wonModalGrid.innerHTML = `
+        <div class="won-modal__empty">
+          <div class="won-modal__empty-icon">😅</div>
+          <div>Você ainda não venceu com nenhum campeão.<br>Bora jogar!</div>
+        </div>`;
+    } else {
+      wonModalGrid.innerHTML = winners.map(c => `
+        <div class="won-champ-card" data-id="${c.id}">
+          <img class="won-champ-card__img" src="${CHAMPION_IMG(c.id)}" alt="${c.name}" loading="lazy">
+          <div class="won-champ-card__name">${c.name}</div>
+          <div class="won-champ-card__wins">🏆 ${getWinCount(state, c.id)}x</div>
+        </div>
+      `).join('');
+      wonModalGrid.querySelectorAll('.won-champ-card').forEach(card => {
+        card.addEventListener('click', () => { closeWonModal(); openDetail(card.dataset.id); });
+      });
+    }
+
+    wonOverlay.classList.remove('won-overlay--hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeWonModal() {
+    wonOverlay.classList.add('won-overlay--hidden');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('won-modal-btn')?.addEventListener('click', openWonModal);
+  wonModalClose?.addEventListener('click', closeWonModal);
+  wonOverlay?.addEventListener('click', e => { if (e.target === wonOverlay) closeWonModal(); });
+
+  // ---- FX: Confetti & Skulls ----
+  const fxCanvas = document.getElementById('fx-canvas');
+  const fxCtx    = fxCanvas.getContext('2d');
+  let   fxParticles = [];
+  let   fxRaf      = null;
+
+  function resizeFxCanvas() {
+    fxCanvas.width  = window.innerWidth;
+    fxCanvas.height = window.innerHeight;
+  }
+  resizeFxCanvas();
+  window.addEventListener('resize', resizeFxCanvas);
+
+  function launchFx(type) {
+    resizeFxCanvas();
+    fxParticles = [];
+    const count = type === 'confetti' ? 160 : 80;
+
+    const CONFETTI_COLORS = [
+      '#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#96ceb4',
+      '#dda0dd','#ff8c00','#00fa9a','#ff69b4','#c89b3c'
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const fromLeft = Math.random() < 0.5;
+      fxParticles.push({
+        type,
+        x: fromLeft ? Math.random() * fxCanvas.width * 0.4 : fxCanvas.width * 0.6 + Math.random() * fxCanvas.width * 0.4,
+        y: -20 - Math.random() * 120,
+        vx: (Math.random() - 0.5) * 6,
+        vy: 3 + Math.random() * 5,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.25,
+        size: type === 'confetti' ? 8 + Math.random() * 10 : 18 + Math.random() * 14,
+        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+        opacity: 1,
+        shape: Math.floor(Math.random() * 3), // 0=rect, 1=circle, 2=strip
+        gravity: 0.12 + Math.random() * 0.08,
+        wobble: Math.random() * Math.PI * 2,
+        wobbleSpeed: 0.05 + Math.random() * 0.05,
+      });
+    }
+
+    if (fxRaf) cancelAnimationFrame(fxRaf);
+    animateFx();
+  }
+
+  function animateFx() {
+    fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+    let alive = false;
+
+    for (const p of fxParticles) {
+      p.vy      += p.gravity;
+      p.x       += p.vx + Math.sin(p.wobble) * 1.5;
+      p.y       += p.vy;
+      p.rotation += p.rotSpeed;
+      p.wobble   += p.wobbleSpeed;
+      if (p.y > fxCanvas.height * 0.85) p.opacity -= 0.04;
+      if (p.opacity <= 0) continue;
+      alive = true;
+
+      fxCtx.save();
+      fxCtx.globalAlpha = Math.max(0, p.opacity);
+      fxCtx.translate(p.x, p.y);
+      fxCtx.rotate(p.rotation);
+
+      if (p.type === 'skull') {
+        fxCtx.font = `${p.size}px serif`;
+        fxCtx.textAlign = 'center';
+        fxCtx.textBaseline = 'middle';
+        fxCtx.fillText('💀', 0, 0);
+      } else {
+        fxCtx.fillStyle = p.color;
+        if (p.shape === 0) {
+          fxCtx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        } else if (p.shape === 1) {
+          fxCtx.beginPath();
+          fxCtx.arc(0, 0, p.size / 2.5, 0, Math.PI * 2);
+          fxCtx.fill();
+        } else {
+          fxCtx.fillRect(-p.size / 6, -p.size / 2, p.size / 3, p.size);
+        }
+      }
+      fxCtx.restore();
+    }
+
+    if (alive) fxRaf = requestAnimationFrame(animateFx);
+    else fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  }
+
+  // Expõe globalmente para os botões chamarem
+  window._fxLaunch = launchFx;
 
   // ---- Init ----
   async function init() {

@@ -1856,3 +1856,130 @@ body::before {
   color: var(--accent-primary);
   opacity: 0.9;
 }
+
+/* === MODAL: JÁ VENCI === */
+.won-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  transition: opacity 0.2s;
+}
+.won-overlay--hidden { display: none; }
+
+.won-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 860px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+}
+
+.won-modal__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid var(--border-card);
+  background: rgba(200,155,60,0.08);
+  flex-shrink: 0;
+}
+
+.won-modal__icon { font-size: 1.5rem; }
+.won-modal__title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  letter-spacing: 0.04em;
+}
+.won-modal__close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.won-modal__close:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+
+.won-modal__stats {
+  display: flex;
+  gap: var(--space-xl);
+  padding: var(--space-md) var(--space-xl);
+  border-bottom: 1px solid var(--border-card);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.won-modal__stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.won-modal__stat-value { font-size: 1.4rem; font-weight: 800; color: var(--accent-primary); font-family: var(--font-display); }
+.won-modal__stat-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.won-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-xl);
+  overflow-y: auto;
+}
+.won-modal__grid::-webkit-scrollbar { width: 6px; }
+.won-modal__grid::-webkit-scrollbar-track { background: transparent; }
+.won-modal__grid::-webkit-scrollbar-thumb { background: var(--border-card); border-radius: 3px; }
+
+.won-champ-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-sm);
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+.won-champ-card:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(200,155,60,0.2);
+}
+.won-champ-card__img {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-primary);
+  object-fit: cover;
+}
+.won-champ-card__name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.2;
+}
+.won-champ-card__wins {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+}
+.won-modal__empty {
+  grid-column: 1/-1;
+  text-align: center;
+  padding: var(--space-2xl);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+.won-modal__empty-icon { font-size: 2.5rem; margin-bottom: var(--space-sm); }
