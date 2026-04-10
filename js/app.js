@@ -259,7 +259,6 @@
       const q = searchQuery.toLowerCase();
       champs = champs.filter(c =>
         c.name.toLowerCase().includes(q) ||
-        c.title.toLowerCase().includes(q) ||
         (ROLES[c.role] || '').toLowerCase().includes(q)
       );
     }
