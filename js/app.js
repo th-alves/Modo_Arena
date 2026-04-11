@@ -154,8 +154,8 @@
   let _resetTrapCleanup  = null;
 
   // ---- Image Fallback ----
-  function imgWithFallback(src, alt, className) {
-    return `<img class="${className}" src="${src}" alt="${alt}" loading="lazy"
+  function imgWithFallback(src, alt, className, loading = 'lazy') {
+    return `<img class="${className}" src="${src}" alt="${alt}" loading="${loading}"
       onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'80\\' height=\\'80\\'><rect width=\\'80\\' height=\\'80\\' fill=\\'%23222\\'/><text x=\\'50%\\' y=\\'55%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' font-size=\\'28\\' fill=\\'%23555\\'>?</text></svg>'">`;
   }
 
@@ -266,7 +266,8 @@
   }
 
   // ---- Card (full rebuild) ----
-  function createChampionCard(champ) {
+  function createChampionCard(champ, cardIndex = 99) {
+    const loadAttr = cardIndex < 6 ? 'eager' : 'lazy';
     const wins      = getWinCount(state, champ.id);
     const losses    = getLossCount(state, champ.id);
     const hasWins   = wins > 0;
@@ -290,7 +291,7 @@
     if (compact) {
       card.innerHTML = `
         <div class="champion-card__img-wrapper">
-          ${imgWithFallback(CHAMPION_IMG(champ.id), champ.name, 'champion-card__img')}
+          ${imgWithFallback(CHAMPION_IMG(champ.id), champ.name, 'champion-card__img', loadAttr)}
           <div class="champion-card__overlay"></div>
           ${wins > 0 ? `<span class="win-badge" aria-label="${wins} vitórias">${wins}</span>` : ''}
           ${losses > 0 ? `<span class="loss-badge" aria-label="${losses} derrotas">${losses}</span>` : ''}
@@ -302,7 +303,7 @@
     } else {
       card.innerHTML = `
         <div class="champion-card__img-wrapper">
-          ${imgWithFallback(CHAMPION_IMG(champ.id), champ.name, 'champion-card__img')}
+          ${imgWithFallback(CHAMPION_IMG(champ.id), champ.name, 'champion-card__img', loadAttr)}
           <div class="champion-card__overlay"></div>
           <span class="champion-card__role-badge">${ROLES[champ.role] || champ.role}</span>
           ${wins > 0 ? `<span class="win-badge" aria-label="${wins} vitórias">${wins}V</span>` : ''}
@@ -401,7 +402,10 @@
   }
 
   // ---- Grid ----
+  let _cardIndex = 0; // reset a cada renderGrid para saber quais cards estão acima da dobra
+
   function renderGrid() {
+    _cardIndex = 0;
     const champs = getFilteredChampions();
     const totalPages = Math.max(1, Math.ceil(champs.length / PER_PAGE));
     if (currentPage > totalPages) currentPage = totalPages;
@@ -424,7 +428,7 @@
     }
 
     const frag = document.createDocumentFragment();
-    page.forEach(c => frag.appendChild(createChampionCard(c)));
+    page.forEach(c => frag.appendChild(createChampionCard(c, _cardIndex++)));
     grid.appendChild(frag);
     renderPagination(champs.length, totalPages);
   }
@@ -529,21 +533,21 @@
       showToast(`${champ.name} selecionado!`, 'gold');
     });
     detailActions.querySelector('[data-action="add-win"]').addEventListener('click', () => {
-      state = addWin(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
+      state = addWin(state, champ.id); updateStats(); updateCardInPlace(champ.id); openDetail(champ.id);
       showToast(`🏆 Venci com ${champ.name}! (${getWinCount(state,champ.id)}ª vez)`, 'success');
       launchFx('confetti');
     });
     detailActions.querySelector('[data-action="add-loss"]').addEventListener('click', () => {
-      state = addLoss(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
+      state = addLoss(state, champ.id); updateStats(); updateCardInPlace(champ.id); openDetail(champ.id);
       showToast(`Perdi com ${champ.name}…`, 'danger');
       launchFx('skull');
     });
     detailActions.querySelector('[data-action="undo-win"]')?.addEventListener('click', () => {
-      state = removeWin(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
+      state = removeWin(state, champ.id); updateStats(); updateCardInPlace(champ.id); openDetail(champ.id);
       showToast(`${champ.name} — vitória removida`, 'danger');
     });
     detailActions.querySelector('[data-action="undo-loss"]')?.addEventListener('click', () => {
-      state = removeLoss(state, champ.id); updateStats(); renderGrid(); openDetail(champ.id);
+      state = removeLoss(state, champ.id); updateStats(); updateCardInPlace(champ.id); openDetail(champ.id);
       showToast(`${champ.name} — derrota removida`, 'gold');
     });
 
