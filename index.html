@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contador de Apavoro</title>
+  <title>TDAH.GG</title>
+  <link rel="preconnect" href="https://ddragon.leagueoflegends.com" crossorigin>
+  <link rel="dns-prefetch" href="https://ddragon.leagueoflegends.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
 </head>
@@ -12,12 +16,12 @@
 
     <!-- HEADER -->
     <header class="header">
-      <h1 class="header__title">Contador de Apavoro</h1>
+      <h1 class="header__title">TDAH.GG</h1>
       <p class="header__subtitle">Seu histórico de crimes no Arena.</p>
     </header>
 
     <!-- STATS BAR -->
-    <section class="stats-bar" id="stats-bar">
+    <section class="stats-bar" id="stats-bar" aria-label="Estatísticas gerais">
       <div class="stat-item">
         <div class="stat-item__value" id="stat-total">0</div>
         <div class="stat-item__label">Total</div>
@@ -38,6 +42,10 @@
         <div class="stat-item__value stat-item__value--gold" id="stat-winrate">—</div>
         <div class="stat-item__label">Winrate</div>
       </div>
+      <div class="stat-item stat-item--streak" id="stat-streak-item" style="display:none">
+        <div class="stat-item__value streak-value" id="stat-streak">0</div>
+        <div class="stat-item__label" id="stat-streak-label">Streak</div>
+      </div>
       <div class="stat-item stat-item--rank">
         <div class="stat-rank" id="stat-rank">
           <span class="rank-icon">🩶</span>
@@ -54,7 +62,7 @@
     </section>
 
     <!-- CURRENT CHAMPION -->
-    <section class="current-champion current-champion--empty" id="current-champion">
+    <section class="current-champion current-champion--empty" id="current-champion" aria-label="Campeão atual selecionado">
       <div class="current-champion__info">
         <div class="current-champion__label">Campeão Atual</div>
         <div class="current-champion__name">Selecione um campeão</div>
@@ -63,66 +71,82 @@
 
     <!-- HISTÓRICO DE PATCHES -->
     <section class="patch-history" id="patch-history">
-      <button class="patch-history__toggle" id="patch-history-toggle">
+      <button class="patch-history__toggle" id="patch-history-toggle" aria-expanded="false" aria-controls="patch-history-body">
         <span>📜 Histórico de Patches</span>
-        <span class="patch-toggle-arrow">▼</span>
+        <span class="patch-toggle-arrow" aria-hidden="true">▼</span>
       </button>
-      <div class="patch-history__body" id="patch-history-body">
+      <div class="patch-history__body" id="patch-history-body" role="region" aria-label="Histórico de patches">
+        <div class="patch-history__chart" id="patch-history-chart"></div>
         <div class="patch-history__list" id="patch-history-list"></div>
       </div>
     </section>
 
     <!-- CONTROLS -->
-    <section class="controls">
+    <section class="controls" aria-label="Controles e filtros">
       <div class="controls__top-row">
         <div class="search-wrapper" style="flex:1">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" class="search-input" id="search-input" placeholder="Buscar campeão..." autocomplete="off">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" class="search-input" id="search-input" placeholder="Buscar campeão..." autocomplete="off" aria-label="Buscar campeão pelo nome">
         </div>
 
+        <!-- Sort -->
+        <div class="sort-wrapper">
+          <label class="sr-only" for="sort-select">Ordenar por</label>
+          <select class="sort-select" id="sort-select" aria-label="Ordenar campeões por">
+            <option value="name">A–Z</option>
+            <option value="wins">Mais Vitórias</option>
+            <option value="winrate">Winrate</option>
+            <option value="played">Mais Jogado</option>
+          </select>
+        </div>
+
+        <!-- Mobile menu toggle -->
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Abrir menu de controles" aria-expanded="false" aria-controls="control-btns">☰</button>
+
         <!-- Botões de controle -->
-        <div class="control-btns">
-          <button class="control-btn" id="won-modal-btn" title="Ver campeões que já venci">🏆 Já Venci</button>
-          <button class="control-btn" id="won-toggle" title="Filtrar campeões que já venci">🔍 Filtrar Vitórias</button>
-          <button class="control-btn" id="unplayed-toggle" title="Mostrar apenas campeões não jogados">🎯 Não joguei</button>
-          <button class="control-btn" id="compact-toggle" title="Modo compacto">▦ Compacto</button>
-          <button class="control-btn" id="export-btn" title="Exportar backup JSON">📦 Export</button>
-          <button class="control-btn" id="import-btn" title="Importar backup JSON">📂 Import</button>
-          <input type="file" id="import-file" accept=".json" style="display:none">
-          <button class="reset-wins-btn" id="reset-wins-btn" title="Resetar para novo patch">🔄 Novo Patch</button>
+        <div class="control-btns" id="control-btns" role="toolbar" aria-label="Ações">
+          <button class="control-btn" id="won-modal-btn" title="Ver todos os campeões que já venci" aria-label="Ver campeões que já venci">🏆 Já Venci</button>
+          <button class="control-btn" id="won-toggle" title="Filtrar campeões com vitória" aria-label="Filtrar por vitórias" aria-pressed="false">🔍 Filtrar Vitórias</button>
+          <button class="control-btn" id="unplayed-toggle" title="Mostrar apenas campeões não jogados" aria-label="Mostrar campeões não jogados" aria-pressed="false">🎯 Não joguei</button>
+          <button class="control-btn" id="role-stats-btn" title="Ver estatísticas por role" aria-label="Estatísticas por role">📊 Por Role</button>
+          <button class="control-btn" id="compact-toggle" title="Modo compacto" aria-label="Alternar modo compacto" aria-pressed="false">▦ Compacto</button>
+          <button class="control-btn" id="export-btn" title="Exportar backup JSON" aria-label="Exportar dados">📦 Export</button>
+          <button class="control-btn" id="import-btn" title="Importar backup JSON" aria-label="Importar dados">📂 Import</button>
+          <input type="file" id="import-file" accept=".json" style="display:none" aria-hidden="true">
+          <button class="reset-wins-btn" id="reset-wins-btn" title="Resetar para novo patch" aria-label="Iniciar novo patch">🔄 Novo Patch</button>
         </div>
       </div>
 
       <!-- Tag filter bar -->
-      <div class="tag-filter-bar tag-filter-bar--hidden" id="tag-filter-bar"></div>
+      <div class="tag-filter-bar tag-filter-bar--hidden" id="tag-filter-bar" role="status" aria-live="polite"></div>
 
       <!-- Role filters -->
-      <div class="role-filters" id="role-filters">
-        <button class="role-btn role-btn--active" data-role="ALL">Todos</button>
-        <button class="role-btn" data-role="FIGHTER">Lutador</button>
-        <button class="role-btn" data-role="MAGE">Mago</button>
-        <button class="role-btn" data-role="ASSASSIN">Assassino</button>
-        <button class="role-btn" data-role="TANK">Tanque</button>
-        <button class="role-btn" data-role="MARKSMAN">Atirador</button>
-        <button class="role-btn" data-role="SUPPORT">Suporte</button>
+      <div class="role-filters" id="role-filters" role="group" aria-label="Filtrar por role">
+        <button class="role-btn role-btn--active" data-role="ALL" aria-pressed="true">Todos</button>
+        <button class="role-btn" data-role="FIGHTER" aria-pressed="false">Lutador</button>
+        <button class="role-btn" data-role="MAGE" aria-pressed="false">Mago</button>
+        <button class="role-btn" data-role="ASSASSIN" aria-pressed="false">Assassino</button>
+        <button class="role-btn" data-role="TANK" aria-pressed="false">Tanque</button>
+        <button class="role-btn" data-role="MARKSMAN" aria-pressed="false">Atirador</button>
+        <button class="role-btn" data-role="SUPPORT" aria-pressed="false">Suporte</button>
       </div>
     </section>
 
     <!-- CHAMPION GRID -->
-    <main class="champion-grid" id="champion-grid"></main>
+    <main class="champion-grid" id="champion-grid" aria-label="Grade de campeões" aria-live="polite"></main>
 
     <!-- PAGINAÇÃO -->
-    <nav class="pagination" id="pagination"></nav>
+    <nav class="pagination" id="pagination" aria-label="Navegação de páginas"></nav>
 
   </div>
 
   <!-- DETAIL OVERLAY -->
-  <div class="detail-overlay detail-overlay--hidden" id="detail-overlay">
+  <div class="detail-overlay detail-overlay--hidden" id="detail-overlay" role="dialog" aria-modal="true" aria-labelledby="detail-name">
     <div class="detail-panel" id="detail-panel">
       <div class="detail-panel__header">
         <img class="detail-panel__splash" id="detail-splash" src="" alt="">
         <div class="detail-panel__header-overlay"></div>
-        <button class="detail-panel__close" id="detail-close" aria-label="Fechar">✕</button>
+        <button class="detail-panel__close" id="detail-close" aria-label="Fechar painel de detalhes">✕</button>
       </div>
       <div class="detail-panel__body">
         <div class="detail-panel__champion-header">
@@ -134,6 +158,11 @@
           </div>
         </div>
         <div class="detail-panel__actions" id="detail-actions"></div>
+        <div class="detail-notes-section">
+          <div class="detail-notes__label">📝 Notas pessoais</div>
+          <textarea class="detail-notes__textarea" id="detail-notes" placeholder="Ex: build favorita, dica de counter, quando usar…" maxlength="500" aria-label="Notas sobre este campeão"></textarea>
+          <div class="detail-notes__hint" id="detail-notes-hint">0/500</div>
+        </div>
         <div class="tags-section">
           <div class="tags-section__title">Características <small style="color:var(--text-muted);font-weight:400;font-size:0.75rem">(clique para filtrar)</small></div>
           <div class="tags-list" id="tags-list"></div>
@@ -146,13 +175,38 @@
     </div>
   </div>
 
+  <!-- MODAL: JÁ VENCI -->
+  <div class="won-overlay won-overlay--hidden" id="won-overlay" role="dialog" aria-modal="true" aria-labelledby="won-modal-title">
+    <div class="won-modal">
+      <div class="won-modal__header">
+        <span class="won-modal__icon" aria-hidden="true">🏆</span>
+        <span class="won-modal__title" id="won-modal-title">Campeões que você já venceu</span>
+        <button class="won-modal__close" id="won-modal-close" aria-label="Fechar modal">✕</button>
+      </div>
+      <div class="won-modal__stats" id="won-modal-stats" aria-label="Resumo de vitórias"></div>
+      <div class="won-modal__grid" id="won-modal-grid" role="list"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: STATS POR ROLE -->
+  <div class="role-stats-overlay role-stats-overlay--hidden" id="role-stats-overlay" role="dialog" aria-modal="true" aria-labelledby="role-stats-title">
+    <div class="role-stats-modal">
+      <div class="role-stats-modal__header">
+        <span aria-hidden="true">📊</span>
+        <span id="role-stats-title">Estatísticas por Role</span>
+        <button class="role-stats-modal__close" id="role-stats-close" aria-label="Fechar modal">✕</button>
+      </div>
+      <div class="role-stats-modal__body" id="role-stats-body"></div>
+    </div>
+  </div>
+
   <!-- MODAL: RESET PATCH -->
-  <div class="reset-overlay reset-overlay--hidden" id="reset-overlay">
+  <div class="reset-overlay reset-overlay--hidden" id="reset-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title">
     <div class="reset-modal">
-      <div class="reset-modal__icon">🔄</div>
-      <div class="reset-modal__title">Novo Patch</div>
+      <div class="reset-modal__icon" aria-hidden="true">🔄</div>
+      <div class="reset-modal__title" id="reset-modal-title">Novo Patch</div>
       <div class="reset-modal__desc">Dê um nome para este patch antes de resetar — o histórico ficará salvo.</div>
-      <input class="reset-modal__input" id="patch-label-input" type="text" placeholder="Ex: Patch 25.8" maxlength="30">
+      <input class="reset-modal__input" id="patch-label-input" type="text" placeholder="Ex: Patch 25.8" maxlength="30" aria-label="Nome do patch">
       <div class="reset-modal__desc" style="font-size:0.8rem;margin-top:-8px">Isso vai apagar <strong>todas as vitórias e derrotas</strong> atuais.</div>
       <div class="reset-modal__btns">
         <button class="reset-modal__cancel" id="reset-cancel">Cancelar</button>
@@ -161,32 +215,19 @@
     </div>
   </div>
 
-  <!-- MODAL: JÁ VENCI -->
-  <div class="won-overlay won-overlay--hidden" id="won-overlay">
-    <div class="won-modal">
-      <div class="won-modal__header">
-        <span class="won-modal__icon">🏆</span>
-        <span class="won-modal__title">Campeões que você já venceu</span>
-        <button class="won-modal__close" id="won-modal-close">✕</button>
-      </div>
-      <div class="won-modal__stats" id="won-modal-stats"></div>
-      <div class="won-modal__grid" id="won-modal-grid"></div>
-    </div>
-  </div>
+  <!-- TOAST -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <!-- CANVAS: CONFETTI / SKULLS -->
-  <canvas id="fx-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
-
-  <!-- TOAST -->
-  <div class="toast" id="toast"></div>
+  <canvas id="fx-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:800;" aria-hidden="true"></canvas>
 
   <!-- FOOTER -->
   <footer class="app-footer">
     <span>Feito por <a href="https://www.instagram.com/dev.thigas/" target="_blank" rel="noopener noreferrer" class="app-footer__link">Thigas</a> 💜</span>
   </footer>
 
-  <script src="js/champions.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/champions.js" defer></script>
+  <script src="js/storage.js"   defer></script>
+  <script src="js/app.js"       defer></script>
 </body>
 </html>
