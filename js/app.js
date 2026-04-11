@@ -5,6 +5,69 @@
 (function () {
   'use strict';
 
+  // ---- Utilitários ----
+
+  // Escapa HTML para evitar XSS em qualquer valor inserido via innerHTML
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Debounce genérico
+  function debounce(fn, ms) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+  }
+
+  // Memoização do filtro+sort — evita reprocessar 170 campeões quando nada mudou
+  let _filterCache = { key: null, result: null };
+  function getFilteredChampions() {
+    const key = `${activeRole}|${searchQuery}|${activeTag}|${showUnplayed}|${showWon}|${sortBy}|${Object.keys(state.wins).length}|${Object.keys(state.losses).length}`;
+    if (_filterCache.key === key) return _filterCache.result;
+
+    let champs = getChampionsByRole(activeRole);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      champs = champs.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        (ROLES[c.role] || '').toLowerCase().includes(q)
+      );
+    }
+    if (activeTag)    champs = champs.filter(c => c.tags.includes(activeTag));
+    if (showUnplayed) champs = champs.filter(c => getWinCount(state, c.id) === 0 && getLossCount(state, c.id) === 0);
+    if (showWon)      champs = champs.filter(c => getWinCount(state, c.id) > 0);
+
+    champs = [...champs];
+    if (sortBy === 'wins') {
+      champs.sort((a, b) => getWinCount(state, b.id) - getWinCount(state, a.id));
+    } else if (sortBy === 'winrate') {
+      champs.sort((a, b) => {
+        const pa = getWinCount(state,a.id) + getLossCount(state,a.id);
+        const pb = getWinCount(state,b.id) + getLossCount(state,b.id);
+        const wra = pa > 0 ? getWinCount(state,a.id) / pa : -1;
+        const wrb = pb > 0 ? getWinCount(state,b.id) / pb : -1;
+        return wrb - wra;
+      });
+    } else if (sortBy === 'played') {
+      champs.sort((a, b) => {
+        const pa = getWinCount(state,a.id) + getLossCount(state,a.id);
+        const pb = getWinCount(state,b.id) + getLossCount(state,b.id);
+        return pb - pa;
+      });
+    } else {
+      champs.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    }
+
+    _filterCache = { key, result: champs };
+    return champs;
+  }
+
+  function invalidateFilterCache() { _filterCache = { key: null, result: null }; }
+
   // ---- Estado ----
   let state = loadState();
   let activeRole   = 'ALL';
@@ -64,8 +127,9 @@
   const tagsList      = document.getElementById('tags-list');
   const counterList   = document.getElementById('counter-list');
   const detailClose   = document.getElementById('detail-close');
-  const detailNotes   = document.getElementById('detail-notes');
+  const detailNotes     = document.getElementById('detail-notes');
   const detailNotesHint = document.getElementById('detail-notes-hint');
+  let _noteAbort = null; // AbortController para cleanup do listener de notas
 
   // ---- Focus Trap ----
   function trapFocus(container) {
@@ -108,6 +172,7 @@
 
   // ---- Stats ----
   function updateStats() {
+    invalidateFilterCache();
     const total       = CHAMPIONS.length;
     const totalWins   = getTotalWins(state);
     const totalLosses = getTotalLosses(state);
@@ -335,46 +400,6 @@
     });
   }
 
-  // ---- Filtro & Sort ----
-  function getFilteredChampions() {
-    let champs = getChampionsByRole(activeRole);
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      champs = champs.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        (ROLES[c.role] || '').toLowerCase().includes(q)
-      );
-    }
-    if (activeTag)    champs = champs.filter(c => c.tags.includes(activeTag));
-    if (showUnplayed) champs = champs.filter(c => getWinCount(state, c.id) === 0 && getLossCount(state, c.id) === 0);
-    if (showWon)      champs = champs.filter(c => getWinCount(state, c.id) > 0);
-
-    // Sorting
-    champs = [...champs];
-    if (sortBy === 'wins') {
-      champs.sort((a, b) => getWinCount(state, b.id) - getWinCount(state, a.id));
-    } else if (sortBy === 'winrate') {
-      champs.sort((a, b) => {
-        const pa = getWinCount(state,a.id) + getLossCount(state,a.id);
-        const pb = getWinCount(state,b.id) + getLossCount(state,b.id);
-        const wra = pa > 0 ? getWinCount(state,a.id) / pa : -1;
-        const wrb = pb > 0 ? getWinCount(state,b.id) / pb : -1;
-        return wrb - wra;
-      });
-    } else if (sortBy === 'played') {
-      champs.sort((a, b) => {
-        const pa = getWinCount(state,a.id) + getLossCount(state,a.id);
-        const pb = getWinCount(state,b.id) + getLossCount(state,b.id);
-        return pb - pa;
-      });
-    } else {
-      champs.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    }
-
-    return champs;
-  }
-
   // ---- Grid ----
   function renderGrid() {
     const champs = getFilteredChampions();
@@ -453,6 +478,7 @@
     detailAvatar.alt  = champ.name;
     detailAvatar.onerror = () => { detailAvatar.src = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><rect width='80' height='80' fill='%23222'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='28' fill='%23555'>?</text></svg>`; };
     detailName.textContent  = champ.name;
+    document.title = `${champ.name} · TDAH.GG`;
     detailTitle.textContent = champ.title;
     detailRole.textContent  = ROLES[champ.role] || champ.role;
 
@@ -486,12 +512,16 @@
 
     // Notes
     const noteText = getNote(state, champ.id);
-    detailNotes.value = noteText;
-    detailNotesHint.textContent = `${noteText.length}/500`;
-    detailNotes.oninput = () => {
+    // Notes — cleanup do listener anterior antes de registrar novo
+    if (_noteAbort) _noteAbort.abort();
+    _noteAbort = new AbortController();
+    const saveNoteDebounced = debounce((text) => { state = setNote(state, champ.id, text); }, 500);
+    detailNotes.value = getNote(state, champ.id);
+    detailNotesHint.textContent = `${detailNotes.value.length}/500`;
+    detailNotes.addEventListener('input', () => {
       detailNotesHint.textContent = `${detailNotes.value.length}/500`;
-      state = setNote(state, champ.id, detailNotes.value);
-    };
+      saveNoteDebounced(detailNotes.value);
+    }, { signal: _noteAbort.signal });
 
     detailActions.querySelector('[data-action="select"]').addEventListener('click', () => {
       state = setCurrentChampion(state, champ.id);
@@ -556,6 +586,7 @@
   }
 
   function closeDetail() {
+    document.title = 'TDAH.GG';
     document.querySelector('.detail-record')?.remove();
     detailOverlay.classList.add('detail-overlay--hidden');
     detailOverlay.setAttribute('aria-hidden', 'true');
@@ -576,8 +607,8 @@
     patchHistoryList.innerHTML = state.patches.map((p, i) => `
       <div class="patch-item" ${i === 0 ? 'data-latest' : ''}>
         <div class="patch-item__header">
-          <span class="patch-item__label">${p.label}</span>
-          <span class="patch-item__date">${p.date}</span>
+          <span class="patch-item__label">${escHtml(p.label)}</span>
+          <span class="patch-item__date">${escHtml(p.date)}</span>
         </div>
         <div class="patch-item__stats">
           <span class="patch-stat patch-stat--win">🏆 ${p.totalWins} vitórias</span>
@@ -628,7 +659,7 @@
           const x = padL + i * xStep;
           const yw = padT + (H - padT - padB) * (1 - p.totalWins / maxWins);
           const yl = padT + (H - padT - padB) * (1 - p.totalLosses / maxWins);
-          const label = p.label.length > 8 ? p.label.slice(0,8) + '…' : p.label;
+          const label = p.label.length > 8 ? escHtml(p.label.slice(0,8)) + '…' : escHtml(p.label);
           return `
             <circle cx="${x}" cy="${yw}" r="2" fill="#1cad6a"/>
             <circle cx="${x}" cy="${yl}" r="2" fill="#e84057"/>
@@ -881,7 +912,11 @@
   });
 
   // ---- Event Listeners ----
-  searchInput.addEventListener('input', e => { searchQuery = e.target.value; currentPage = 1; renderGrid(); });
+  searchInput.addEventListener('input', debounce(e => {
+    searchQuery = e.target.value;
+    currentPage = 1;
+    renderGrid();
+  }, 150));
 
   roleFilters.addEventListener('click', e => {
     const btn = e.target.closest('.role-btn');
